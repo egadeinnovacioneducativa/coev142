@@ -121,7 +121,7 @@
         
         // ¡IMPORTANTE! Pega aquí la URL de tu Google Apps Script desplegado.
         // Debe parecerse a: "https://script.google.com/macros/s/..../exec"
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxiq2Id1dq9C8FiU07dumVH5mCEQA1e9JMGmZoVvcz6o6SQivzKiWPuzMKufkFvO_9_/exec"; // <-- ¡PÉGALA AQUÍ!
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0bpzKRC5MTSO7_FPs4wxs8qrgWBw33Uz9y-IgRLkfju1sfJsUFGogshqfg0AlBtIT/exec"; // <-- ¡PÉGALA AQUÍ!
 
         // Datos de los estudiantes (limpiados de "Grupo 142.csv")
         const STUDENTS = [
@@ -402,9 +402,20 @@
                 };
             });
             
+            // (NUEVO) Definir los encabezados de criterios que queremos en el Sheet
+            // Esto coincide con tu solicitud "C1 (Collaboration)", etc.
+            const criteriaHeaders = [
+                "C1 (Collaboration)",
+                "C2 (Feedback)",
+                "C3 (Responsibility)",
+                "C4 (Contribution)",
+                "C5 (Leadership)"
+            ];
+
             const payload = {
                 evaluator: evaluatorName,
-                submissions: submissions
+                submissions: submissions,
+                criteria_headers: criteriaHeaders // <-- (NUEVO) Enviamos los encabezados
             };
 
             // 2. Enviar los datos
