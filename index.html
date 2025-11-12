@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Coevaluación</title>
+    <!-- 1. Cargar Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilo para los radio buttons personalizados */
+        input[type="radio"]:checked + label {
+            background-color: #dbeafe; /* bg-blue-100 */
+            border-color: #3b82f6; /* border-blue-500 */
+            color: #1e40af; /* text-blue-900 */
+        }
+        input[type="radio"]:focus + label {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5); /* Anillo de foco */
+        }
+        /* Ocultar elementos por defecto */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans flex items-center justify-center min-h-screen p-4">
+
+    <!-- Contenedor principal de la aplicación -->
+    <div class="max-w-3xl w-full bg-white p-6 sm:p-10 rounded-xl shadow-lg transition-all">
+
+        <!-- Pantalla 1: Inicio / "Login" -->
+        <div id="loginPage">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">Peer & Self-Evaluation Form</h1>
+            <p class="text-lg text-gray-700 mb-6">Group 142</p>
+            
+            <!-- Instrucciones -->
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md text-blue-800 mb-6">
+                <h2 class="font-bold mb-2">Instructions</h2>
+                <p class="text-sm">
+                    Review the list of names presented below. You must evaluate each of your teammates according to the criteria established in the peer evaluation rubric.
+                </p>
+                <p class="text-sm mt-2">
+                    When you find your own name, also perform your self-evaluation with the same objectivity and criteria.
+                </p>
+                <p class="text-sm mt-2">
+                    Assign a grade in each criterion according to the observed performance, striving to be honest and fair in your ratings.
+                </p>
+            </div>
+
+            <!-- Campo de Nombre -->
+            <div class="mb-4">
+                <label for="evaluatorName" class="block text-sm font-medium text-gray-700 mb-2">Please enter your full name (evaluator):</label>
+                <input type="text" id="evaluatorName" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Your Name">
+            </div>
+            
+            <!-- Mensaje de error (Login) -->
+            <div id="loginError" class="text-red-600 text-sm mb-4 hidden"></div>
+
+            <button id="startBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                Start Evaluation
+            </button>
+        </div>
+
+        <!-- Pantalla 2: Formulario de Evaluación -->
+        <div id="evaluationPage" class="hidden">
+            <!-- Encabezado de Evaluación -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-2xl font-bold text-gray-800">Evaluating: <span id="studentName" class="text-blue-600"></span></h2>
+                    <span id="progress" class="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full"></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Formulario (se genera dinámicamente) -->
+            <form id="evalForm" class="space-y-8"></form>
+
+            <!-- Mensaje de error (Formulario) -->
+            <div id="formError" class="text-red-600 text-sm mt-4 hidden"></div>
+
+            <!-- Botones de Navegación -->
+            <div id="navButtons" class="mt-8 flex justify-end">
+                <button id="navBtn" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                    Next Student
+                </button>
+            </div>
+        </div>
+
+        <!-- Pantalla 3: Enviando... -->
+        <div id="submittingPage" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Submitting Evaluations...</h2>
+            <p class="text-gray-600 mb-6">Please wait, this may take a moment.</p>
+            <!-- Animación de Spinner -->
+            <div class="flex justify-center items-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        </div>
+        
+        <!-- Pantalla 4: Éxito -->
+        <div id="successPage" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-green-700 mb-4">Submissions Complete!</h2>
+            <p class="text-gray-600">Thank you. Your evaluations have been successfully recorded.</p>
+        </div>
+        
+        <!-- Pantalla 5: Error de Envío -->
+        <div id="errorPage" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-red-700 mb-4">Submission Error</h2>
+            <p class="text-gray-600 mb-4">There was a problem submitting your evaluations. Please check the Google Apps Script URL or your internet connection.</p>
+            <p id="submissionErrorDetails" class="text-sm text-red-500 bg-red-50 p-4 rounded-md"></p>
+            <button id="retryBtn" class="mt-6 bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                Try Again
+            </button>
+        </div>
+
+    </div>
+
+    <!-- 2. Lógica de JavaScript -->
+    <script>
+        // --- 1. CONFIGURACIÓN ---
+        
+        // ¡IMPORTANTE! Pega aquí la URL de tu Google Apps Script desplegado.
+        // Debe parecerse a: "https://script.google.com/macros/s/..../exec"
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby00SxCG8sVMxUqVgyiGVZEpPTFd3FNakZosJI7d8994S1vulzYM8qVsC7Tt657G-Q9/exec"; // <-- ¡PÉGALA AQUÍ!
+
+        // Datos de los estudiantes (limpiados de "Grupo 142.csv")
+        const STUDENTS = [
+            'Anthony Llilmar Aguilar José', 
+            'Guillermo Arias Domínguez', 
+            'Ines Bentele', 
+            'Estelle Delphine Marie-Joseph Beuzelin', 
+            'Roberto Camiro Marroquín', 
+            'Granit Cani', 
+            'Paul Alexandre Cordier Burgunder', 
+            'Sebastian Gustavo Diaz Gallo', 
+            'Andrea Elizondo Sánchez', 
+            'Paula Esther Gutiérrez Artigas', 
+            'Jesús Habib Guzmán Amín', 
+            'Jonna Kaarina Katajarinne', 
+            'Pablo Mendoza Acevedo', 
+            'Gerrit Tom Moosmann', 
+            'Tethey Sofía Murillo Martínez', 
+            'Tatiana Raphaëlle Marie Nivelleau de la Brunière', 
+            'Pablo Ochoa Macouzet', 
+            'Mariana Ortega Gil', 
+            'Bruno Rojas Torres', 
+            'Sebastián Ullauri Ugarte', 
+            'Liza Sophia Vargas Peralta'
+        ];
+
+        // Datos de la Rúbrica (de "Rubric.xlsx")
+        const RUBRIC = [
+            {
+                id: 'c1',
+                criterion: 'Level of collaboration and teamwork',
+                levels: [
+                    { score: 4, text: 'Actively collaborates with peers, demonstrating leadership and contributing significantly to collective goals.' },
+                    { score: 3, text: 'Collaborates regularly, with a positive but less proactive role.' },
+                    { score: 2, text: 'Collaboration is limited or inconsistent; contributes little to team progress.' },
+                    { score: 1, text: 'Does not collaborate or hinders the team’s performance.' }
+                ]
+            },
+            {
+                id: 'c2',
+                criterion: 'Constructive feedback to peers',
+                levels: [
+                    { score: 4, text: 'Provides insightful, respectful, and constructive feedback that helps peers improve their performance.' },
+                    { score: 3, text: 'Provides adequate feedback, though not always detailed or consistent.' },
+                    { score: 2, text: 'Feedback is minimal, superficial, or lacks constructive value.' },
+                    { score: 1, text: 'Does not provide feedback or comments are irrelevant/negative.' }
+                ]
+            },
+            {
+                id: 'c3',
+                criterion: 'Responsibility and accountability',
+                levels: [
+                    { score: 4, text: 'Assumes full responsibility for tasks and fulfills commitments on time, demonstrating reliability.' },
+                    { score: 3, text: 'Generally responsible, though occasionally misses deadlines or commitments.' },
+                    { score: 2, text: 'Responsibility is inconsistent; often requires reminders to complete tasks.' },
+                    { score: 1, text: 'Fails to meet responsibilities or does not complete assigned tasks.' }
+                ]
+            },
+            {
+                id: 'c4',
+                criterion: 'Contribution to team performance',
+                levels: [
+                    { score: 4, text: 'Makes outstanding contributions that clearly improve the team’s overall results.' },
+                    { score: 3, text: 'Contributes positively to the team, though impact is moderate.' },
+                    { score: 2, text: 'Contribution is limited or adds little value to the team’s achievements.' },
+                    { score: 1, text: 'No meaningful contribution to the team’s performance.' }
+                ]
+            },
+            {
+                id: 'c5',
+                criterion: 'Leadership and initiative',
+                levels: [
+                    { score: 4, text: 'Demonstrates leadership, motivates peers, and takes initiative in advancing the team’s goals.' },
+                    { score: 3, text: 'Shows initiative occasionally, with moderate leadership skills.' },
+                    { score: 2, text: 'Rarely demonstrates initiative; mostly follows others.' },
+                    { score: 1, text: 'Does not demonstrate initiative or leadership.' }
+                ]
+            }
+        ];
+
+        // --- 2. ESTADO DE LA APLICACIÓN ---
+        let evaluatorName = '';
+        let currentStudentIndex = 0;
+        let evaluations = {}; // Almacenará todas las respuestas
+
+        // --- 3. REFERENCIAS AL DOM ---
+        const loginPage = document.getElementById('loginPage');
+        const evaluationPage = document.getElementById('evaluationPage');
+        const submittingPage = document.getElementById('submittingPage');
+        const successPage = document.getElementById('successPage');
+        const errorPage = document.getElementById('errorPage');
+        
+        const evaluatorNameInput = document.getElementById('evaluatorName');
+        const startBtn = document.getElementById('startBtn');
+        const loginError = document.getElementById('loginError');
+
+        const studentNameEl = document.getElementById('studentName');
+        const progressEl = document.getElementById('progress');
+        const progressBarEl = document.getElementById('progressBar');
+        const evalFormEl = document.getElementById('evalForm');
+        const navBtn = document.getElementById('navBtn');
+        const formError = document.getElementById('formError');
+        
+        const submissionErrorDetails = document.getElementById('submissionErrorDetails');
+        const retryBtn = document.getElementById('retryBtn');
+
+        // --- 4. FUNCIONES ---
+
+        /**
+         * Muestra una página/pantalla específica y oculta las demás
+         */
+        function showPage(pageId) {
+            [loginPage, evaluationPage, submittingPage, successPage, errorPage].forEach(page => {
+                page.classList.add('hidden');
+            });
+            document.getElementById(pageId).classList.remove('hidden');
+        }
+
+        /**
+         * Muestra un mensaje de error en el formulario activo
+         */
+        function showMessage(element, message) {
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        /**
+         * Oculta un mensaje de error
+         */
+        function hideMessage(element) {
+            element.classList.add('hidden');
+        }
+
+        /**
+         * Inicia la evaluación
+         */
+        function startEvaluation() {
+            evaluatorName = evaluatorNameInput.value.trim();
+            if (evaluatorName === "") {
+                showMessage(loginError, 'Please enter your name to start.');
+                return;
+            }
+            if (GOOGLE_APPS_SCRIPT_URL === "") {
+                 showMessage(loginError, 'Error: GOOGLE_APPS_SCRIPT_URL is not set in the code. Please ask the administrator to configure it.');
+                 return;
+            }
+            
+            hideMessage(loginError);
+            currentStudentIndex = 0;
+            loadStudentForm(currentStudentIndex);
+            showPage('evaluationPage');
+        }
+
+        /**
+         * Carga el formulario para un estudiante específico
+         */
+        function loadStudentForm(index) {
+            const student = STUDENTS[index];
+            studentNameEl.textContent = student;
+            
+            // Actualizar barra de progreso
+            progressEl.textContent = `Student ${index + 1} of ${STUDENTS.length}`;
+            progressBarEl.style.width = `${((index + 1) / STUDENTS.length) * 100}%`;
+
+            // Limpiar formulario anterior
+            evalFormEl.innerHTML = '';
+
+            // Obtener evaluaciones guardadas (si existen)
+            const savedScores = evaluations[student] || {};
+
+            // Construir el formulario para este estudiante
+            RUBRIC.forEach(criterion => {
+                const criterionId = criterion.id;
+                const savedScore = savedScores[criterionId];
+
+                let radioButtonsHtml = criterion.levels.map(level => {
+                    const radioId = `${criterionId}_${level.score}`;
+                    const isChecked = savedScore && parseInt(savedScore) === level.score ? 'checked' : '';
+                    
+                    return `
+                        <div class="relative">
+                            <input 
+                                type="radio" 
+                                id="${radioId}" 
+                                name="${criterionId}" 
+                                value="${level.score}"
+                                class="absolute opacity-0 w-0 h-0"
+                                ${isChecked}
+                            >
+                            <label 
+                                for="${radioId}" 
+                                class="block w-full p-4 border border-gray-300 rounded-lg cursor-pointer transition-all hover:bg-gray-50"
+                            >
+                                <span class="font-bold text-gray-800">[${level.score}]</span> ${level.text}
+                            </label>
+                        </div>
+                    `;
+                }).join('');
+
+                const criterionHtml = `
+                    <fieldset>
+                        <legend class="text-lg font-semibold text-gray-900 mb-3">${criterion.criterion}</legend>
+                        <div class="space-y-3">
+                            ${radioButtonsHtml}
+                        </div>
+                    </fieldset>
+                `;
+                evalFormEl.insertAdjacentHTML('beforeend', criterionHtml);
+            });
+
+            // Actualizar texto del botón de navegación
+            if (index === STUDENTS.length - 1) {
+                navBtn.textContent = 'Submit All Evaluations';
+            } else {
+                navBtn.textContent = 'Next Student';
+            }
+        }
+        
+        /**
+         * Maneja el clic en el botón "Siguiente" o "Enviar"
+         */
+        function handleNavClick() {
+            // 1. Validar el formulario actual
+            const formData = new FormData(evalFormEl);
+            const currentScores = {};
+            let allAnswered = true;
+
+            for (const criterion of RUBRIC) {
+                const score = formData.get(criterion.id);
+                if (!score) {
+                    allAnswered = false;
+                    break;
+                }
+                currentScores[criterion.id] = parseInt(score);
+            }
+
+            if (!allAnswered) {
+                showMessage(formError, 'Please select a score for all 5 criteria before continuing.');
+                window.scrollTo(0, 0); // Desplazarse al inicio para ver el error
+                return;
+            }
+
+            hideMessage(formError);
+
+            // 2. Guardar los datos del estudiante actual
+            const currentStudentName = STUDENTS[currentStudentIndex];
+            evaluations[currentStudentName] = currentScores;
+
+            // 3. Decidir el siguiente paso
+            if (currentStudentIndex < STUDENTS.length - 1) {
+                // Ir al siguiente estudiante
+                currentStudentIndex++;
+                loadStudentForm(currentStudentIndex);
+                window.scrollTo(0, 0); // Desplazarse al inicio para el siguiente estudiante
+            } else {
+                // Es el último estudiante, enviar todo
+                submitEvaluations();
+            }
+        }
+
+        /**
+         * Prepara y envía todos los datos a Google Apps Script
+         */
+        async function submitEvaluations() {
+            showPage('submittingPage');
+            
+            // 1. Formatear los datos para el envío
+            const submissions = STUDENTS.map(studentName => {
+                const scores = evaluations[studentName];
+                return {
+                    student: studentName,
+                    c1: scores.c1,
+                    c2: scores.c2,
+                    c3: scores.c3,
+                    c4: scores.c4,
+                    c5: scores.c5
+                };
+            });
+            
+            const payload = {
+                evaluator: evaluatorName,
+                submissions: submissions
+            };
+
+            // 2. Enviar los datos
+            try {
+                const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // 'no-cors' es común para GAS, aunque impide leer la respuesta
+                    cache: 'no-cache',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // body: JSON.stringify(payload) // Esto no funciona bien con 'no-cors' y 'text/plain'
+                    // GAS a menudo prefiere que el payload esté dentro de una solicitud de texto plano
+                    // Vamos a intentar un truco común de GAS:
+                    body: JSON.stringify(payload)
+                });
+                
+                // Nota: con 'no-cors', no podemos leer la respuesta 'response.json()'.
+                // Asumimos éxito si la solicitud no lanzó un error de red.
+                // Si el modo 'no-cors' falla, intente cambiarlo a 'cors' si ha configurado GAS para ello.
+                
+                // Simular un pequeño retraso para que el usuario vea el spinner
+                setTimeout(() => {
+                    showPage('successPage');
+                }, 1000);
+
+            } catch (error) {
+                console.error('Submission failed:', error);
+                submissionErrorDetails.textContent = `Error: ${error.message}. Check the console for more details.`;
+                showPage('errorPage');
+            }
+        }
+
+        // --- 5. EVENT LISTENERS ---
+        startBtn.addEventListener('click', startEvaluation);
+        navBtn.addEventListener('click', handleNavClick);
+        retryBtn.addEventListener('click', submitEvaluations); // Botón de reintento
+
+        // Iniciar en la página de login
+        showPage('loginPage');
+
+    </script>
+</body>
+</html>
