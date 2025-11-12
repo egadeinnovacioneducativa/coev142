@@ -302,7 +302,7 @@
                     const isChecked = savedScore && parseInt(savedScore) === level.score ? 'checked' : '';
                     
                     return `
-                        <div class="relative">
+                        <div class="relative h-full">
                             <input 
                                 type="radio" 
                                 id="${radioId}" 
@@ -313,9 +313,10 @@
                             >
                             <label 
                                 for="${radioId}" 
-                                class="block w-full p-4 border border-gray-300 rounded-lg cursor-pointer transition-all hover:bg-gray-50"
+                                class="block w-full h-full p-4 border border-gray-300 rounded-lg cursor-pointer transition-all hover:bg-gray-50 flex flex-col"
                             >
-                                <span class="font-bold text-gray-800">[${level.score}]</span> ${level.text}
+                                <span class="font-bold text-gray-800">[${level.score}]</span>
+                                <span class="text-sm text-gray-600 mt-1">${level.text}</span>
                             </label>
                         </div>
                     `;
@@ -324,7 +325,7 @@
                 const criterionHtml = `
                     <fieldset>
                         <legend class="text-lg font-semibold text-gray-900 mb-3">${criterion.criterion}</legend>
-                        <div class="space-y-3">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                             ${radioButtonsHtml}
                         </div>
                     </fieldset>
