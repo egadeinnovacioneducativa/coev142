@@ -30,19 +30,16 @@
         <!-- Pantalla 1: Inicio / "Login" -->
         <div id="loginPage">
             <h1 class="text-3xl font-bold text-gray-900 mb-4">Peer & Self-Evaluation Form</h1>
-            <p class="text-lg text-gray-700 mb-6">Group 142</p>
+            <p class="text-lg text-gray-700 mb-6">Group 142</p> <!-- <-- CAMBIO AQUÍ -->
             
-            <!-- Instrucciones -->
+            <!-- Instrucciones (Actualizadas) -->
             <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-md text-blue-800 mb-6">
                 <h2 class="font-bold mb-2">Instructions</h2>
                 <p class="text-sm">
-                    Review the list of names presented below. You must evaluate each of your teammates according to the criteria established in the peer evaluation rubric.
+                    Please evaluate your classmates’ participation and contribution to teamwork during class activities and the overall group learning of the course. Your responses are confidential and will be used solely by the instructors to complement the overall assessment. 
                 </p>
                 <p class="text-sm mt-2">
-                    When you find your own name, also perform your self-evaluation with the same objectivity and criteria.
-                </p>
-                <p class="text-sm mt-2">
-                    Assign a grade in each criterion according to the observed performance, striving to be honest and fair in your ratings.
+                    Complete it with honesty and professionalism. For each classmate, you’ll find an open space in the format where you can optionally acknowledge something positive about them.
                 </p>
             </div>
 
@@ -121,9 +118,9 @@
         
         // ¡IMPORTANTE! Pega aquí la URL de tu Google Apps Script desplegado.
         // Debe parecerse a: "https://script.google.com/macros/s/..../exec"
-        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz0bpzKRC5MTSO7_FPs4wxs8qrgWBw33Uz9y-IgRLkfju1sfJsUFGogshqfg0AlBtIT/exec"; // <-- ¡PÉGALA AQUÍ!
+        const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzQUJhcC7ngDsN2vveuPcYw5WBgRz9t8lBwKsBYpkW6-wkvcZoLiIOCJ53QgXgZS_Kx/exec"; // <-- ¡PÉGALA AQUÍ!
 
-        // Datos de los estudiantes (limpiados de "Grupo 142.csv")
+        // Datos de los estudiantes (NUEVA LISTA - Grupo 142)
         const STUDENTS = [
             'Anthony Llilmar Aguilar José', 
             'Guillermo Arias Domínguez', 
@@ -148,7 +145,7 @@
             'Liza Sophia Vargas Peralta'
         ];
 
-        // Datos de la Rúbrica (de "Rubric.xlsx")
+        // Datos de la Rúbrica (Sin cambios)
         const RUBRIC = [
             {
                 id: 'c1',
@@ -177,7 +174,7 @@
                     { score: 4, text: 'Assumes full responsibility for tasks and fulfills commitments on time, demonstrating reliability.' },
                     { score: 3, text: 'Generally responsible, though occasionally misses deadlines or commitments.' },
                     { score: 2, text: 'Responsibility is inconsistent; often requires reminders to complete tasks.' },
-                    { score: 1, text: 'Fails to meet responsibilities or does not complete assigned tasks.' }
+                    { score: 1, 'text': 'Fails to meet responsibilities or does not complete assigned tasks.' }
                 ]
             },
             {
@@ -291,6 +288,7 @@
 
             // Obtener evaluaciones guardadas (si existen)
             const savedScores = evaluations[student] || {};
+            const savedComment = savedScores['comment'] || ''; // Cargar comentario guardado
 
             // Construir el formulario para este estudiante
             RUBRIC.forEach(criterion => {
@@ -333,6 +331,25 @@
                 evalFormEl.insertAdjacentHTML('beforeend', criterionHtml);
             });
 
+            // (NUEVO) Añadir el campo de comentario opcional
+            const commentHtml = `
+                <div class="mt-6">
+                    <label for="positive_comment" class="block text-lg font-semibold text-gray-900 mb-3">
+                        Positive Acknowledgment (Optional)
+                    </label>
+                    <p class="text-sm text-gray-600 mb-3">Optionally acknowledge something positive about <span class="font-medium">${student}</span>.</p>
+                    <textarea 
+                        id="positive_comment"
+                        name="positive_comment"
+                        rows="3"
+                        class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="E.g., 'Great at organizing the team', 'Always brought creative ideas'..."
+                    >${savedComment}</textarea>
+                </div>
+            `;
+            evalFormEl.insertAdjacentHTML('beforeend', commentHtml);
+
+
             // Actualizar texto del botón de navegación
             if (index === STUDENTS.length - 1) {
                 navBtn.textContent = 'Submit All Evaluations';
@@ -358,6 +375,10 @@
                 }
                 currentScores[criterion.id] = parseInt(score);
             }
+
+            // (NUEVO) Obtener el comentario opcional
+            const comment = formData.get('positive_comment').trim();
+            currentScores['comment'] = comment;
 
             if (!allAnswered) {
                 showMessage(formError, 'Please select a score for all 5 criteria before continuing.');
@@ -392,18 +413,25 @@
             // 1. Formatear los datos para el envío
             const submissions = STUDENTS.map(studentName => {
                 const scores = evaluations[studentName];
+                // Manejar el caso de que no haya scores (aunque la validación debería prevenirlo)
+                if (!scores) {
+                    return {
+                        student: studentName,
+                        c1: null, c2: null, c3: null, c4: null, c5: null, comment: ""
+                    };
+                }
                 return {
                     student: studentName,
                     c1: scores.c1,
                     c2: scores.c2,
                     c3: scores.c3,
                     c4: scores.c4,
-                    c5: scores.c5
+                    c5: scores.c5,
+                    comment: scores.comment || "" // <-- (NUEVO) Añadir comentario
                 };
             });
             
-            // (NUEVO) Definir los encabezados de criterios que queremos en el Sheet
-            // Esto coincide con tu solicitud "C1 (Collaboration)", etc.
+            // Definir los encabezados de criterios que queremos en el Sheet
             const criteriaHeaders = [
                 "C1 (Collaboration)",
                 "C2 (Feedback)",
@@ -415,7 +443,7 @@
             const payload = {
                 evaluator: evaluatorName,
                 submissions: submissions,
-                criteria_headers: criteriaHeaders // <-- (NUEVO) Enviamos los encabezados
+                criteria_headers: criteriaHeaders
             };
 
             // 2. Enviar los datos
@@ -427,15 +455,8 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    // body: JSON.stringify(payload) // Esto no funciona bien con 'no-cors' y 'text/plain'
-                    // GAS a menudo prefiere que el payload esté dentro de una solicitud de texto plano
-                    // Vamos a intentar un truco común de GAS:
                     body: JSON.stringify(payload)
                 });
-                
-                // Nota: con 'no-cors', no podemos leer la respuesta 'response.json()'.
-                // Asumimos éxito si la solicitud no lanzó un error de red.
-                // Si el modo 'no-cors' falla, intente cambiarlo a 'cors' si ha configurado GAS para ello.
                 
                 // Simular un pequeño retraso para que el usuario vea el spinner
                 setTimeout(() => {
